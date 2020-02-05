@@ -8,6 +8,7 @@ void SQLite::_register_methods()
     register_method("open_db", &SQLite::open_db);
     register_method("import_from_json", &SQLite::import_from_json);
     register_method("export_to_json", &SQLite::export_to_json);
+    register_method("export_to_json_string", &SQLite::export_to_json_string);
     register_method("close_db", &SQLite::close_db);
     register_method("query", &SQLite::query);
 
@@ -226,6 +227,28 @@ bool SQLite::export_to_json(String export_path)
     ofs << "]";
     ofs.close();
     return true;
+}
+
+String SQLite::export_to_json_string() {
+    query(String("SELECT name, sql FROM sqlite_master WHERE type = 'table';"));
+    int number_of_tables = query_result.size();
+    Array database_dict;
+    for(int i=0; i<number_of_tables; i++) {
+        database_dict.append(deep_copy(query_result[i]));
+    }
+    String json;
+    json += "[";
+    for(int i=0; i<number_of_tables; i++) {
+        Dictionary table_dict = database_dict[i];
+        const String query_string = "SELECT * FROM " + (const String&)(table_dict["name"]) + ";";
+        query(query_string);
+        table_dict["row_array"] = query_result;
+        json += JSON::get_singleton()->print(table_dict);
+        if(i != number_of_tables - 1) {
+            json += ", ";
+        }
+    }
+    return json;
 }
 
 void SQLite::close_db()
